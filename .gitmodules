@@ -1,0 +1,6 @@
+[submodule "News-Media_Reliability"]
+	path = News-Media_Reliability
+	url = https://github.com/ramybaly/News-Media-Reliability.git
+[submodule "Mimick"]
+	path = Mimick
+	url = https://github.com/yuvalpinter/Mimick.git
