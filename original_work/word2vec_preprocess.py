@@ -14,7 +14,7 @@ def load_word2vec(path):
     return model
 
 
-def create_char_dicts(non_letter_chars, lower_case=True, upper_case=True)
+def create_char_dicts(non_letter_chars, lower_case=True, upper_case=True):
     """
     Create dictionary mapping characters to indices
     :param non_letter_chars: list of characters which should be supported other than letters
@@ -23,7 +23,7 @@ def create_char_dicts(non_letter_chars, lower_case=True, upper_case=True)
     """
     lower_case_letter_dict={}
     upper_case_letter_dict={}
-    index_count = 1
+    index_count = 0
     # Create a dictionary with upper and lower case letters and associated index
     # Note: We include underscores, hyphens, and apostrophes but ignore other characters
     # found in word2vec model, including chinese symbols, emojis, etc
@@ -63,7 +63,10 @@ def create_data_dict(model, chardict):
         Function to determine if word can be included and perform any parsing
         """
         if (all(char in chardict.keys() for char in word)) & (len(word)<=25):
-            return True
+            # Some word2vec entries are all capitals and generally are acronyms.
+            # This is unlikely to be learnable
+            if not word.isupper():
+                return True
 
         return False
 
@@ -82,15 +85,13 @@ def create_data_dict(model, chardict):
     return all_words
 
 
-def train_model():
-    return
-
 def run():
     model = load_word2vec('./word2vec_model/GoogleNews-vectors-negative300.bin')
-    supported_non_letter_characters = ['.','-','\'']
+    supported_non_letter_characters = ['-','\'']
     chardict, reverse_chardict = create_char_dicts(supported_non_letter_characters)
     data_dict = create_data_dict(model, chardict)
-    train_model()
+    
+    return data_dict, chardict
     
     
     
