@@ -1,26 +1,30 @@
 # File to define our LSTM class
 
-# Useful library for embeddings
-import gensim
-from string import ascii_lowercase, ascii_uppercase
 
+# Authors: Clay & Gaurav
+# Objective: Create Mimic LSTM models as outlined by Pinter et. al in "Mimicking Word Embeddings using Subword RNNs"
+#-------------------------------------------------------------------------------------------------------------------
+
+
+# Imports used in class MimicLSTM
+from string import ascii_lowercase, ascii_uppercase
+import sys
+
+import gensim
+from keras.preprocessing import sequence 
+from keras import backend as K
 import numpy as np
 from sklearn.model_selection import train_test_split
 
-from keras.preprocessing import sequence 
-from keras import backend as K
-
 import tensorflow as tf
 from tensorflow.keras import Sequential, optimizers, initializers
-from tensorflow.keras.layers import Dropout, Embedding, Dense, LSTM, Bidirectional, Flatten
+from tensorflow.keras.layers import Dropout, Embedding, Dense, LSTM, Bidirectional
 from tensorflow.keras.models import load_model
-import sys
-from sklearn.metrics.pairwise import cosine_similarity
 
 
 class MimicLSTM():
     
-    def __init__(self, layers, H, chardict, character_dim, data_dictionary, epochs=5, batch_size=100,
+    def __init__(self, layers, H, chardict, character_dim, data_dictionary, epochs=1, batch_size=1000,
                  optimizer='adam', loss_function="mean_squared_error", train=True, full_set=False, load_path=''):
         
         """Init function.
@@ -82,17 +86,11 @@ class MimicLSTM():
             
             # Add a fully connected layer which results in predictions equal to our stated output_dim
             lstm.add(Dense(self.output_dim, activation='tanh'))
-            
-#             def custom_loss(y_true, y_pred):
-#                 y_true = tf.math.l2_normalize(y_true)
-#                 y_pred = tf.math.l2_normalize(y_pred)
-#                 loss = tf.losses.cosine_distance(y_true, y_pred)
-#                 return loss
-            
+                   
             def custom_cosine(y_true, y_pred):
                 """
                 Keras cosine_proximity doesn't subtract 1, 
-                so can't be used as loss function
+                so can't be used as loss function if vectors have negative values
                 """
                 y_true = K.l2_normalize(y_true, axis=-1)
                 y_pred = K.l2_normalize(y_pred, axis=-1)
@@ -172,14 +170,18 @@ class MimicLSTM():
             self.lstm.fit(self.train_w, self.train_e, validation_data = (self.test_w, self.test_e),
                           epochs = epochs, batch_size = batch_size)
         
-        return 
+        return self
     
                           
-    def save_model(self, model, path):
+    def save_model(self, path):
         """
         helper function to save trained keras model
+        :param path: Location of where to save file
         """
-        model.save(path) 
+        try:
+            self.lstm.save(path) 
+        except:
+            print("Error saving file")
                           
         return "Save Succesful"
              
@@ -187,13 +189,14 @@ class MimicLSTM():
     def load_model(self, path):
         """
         Helper function to load pretrained keras model
+        :param path: location of model to be loaded
         """
         try:              
             self.lstm = load_model(path)
         except:
             print("Could not load file, not valid path")
                           
-        return
+        return "Load Succesful"
                           
         
 

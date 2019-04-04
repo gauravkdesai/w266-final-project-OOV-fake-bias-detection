@@ -1,7 +1,13 @@
-# File to train LSTM model
-import gensim
+# File to preprocess word2vec data for training
+
+# Authors: Clay & Gaurav
+# Objective: Preprocess 300d word2vec embeddings into indices dictionary and word:embedding training data dictionary
+#-------------------------------------------------------------------------------------------------------------------
+
+
 from string import ascii_lowercase, ascii_uppercase
 
+import gensim
 import numpy as np
 
 
