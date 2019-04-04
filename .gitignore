@@ -102,3 +102,4 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+original_work/word2vec_model/GoogleNews-vectors-negative300.bin
