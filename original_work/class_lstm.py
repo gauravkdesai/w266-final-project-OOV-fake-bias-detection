@@ -11,32 +11,42 @@ from string import ascii_lowercase, ascii_uppercase
 import sys
 
 import gensim
-from keras.preprocessing import sequence 
+
 from keras import backend as K
+from keras import Sequential, optimizers, initializers, regularizers
+from keras.layers import Dropout, Embedding, Dense, LSTM, Bidirectional, LeakyReLU
+from keras.models import load_model
+from keras.preprocessing import sequence 
+
+from keras_self_attention import SeqSelfAttention
 import numpy as np
 from sklearn.model_selection import train_test_split
-
-import tensorflow as tf
-from tensorflow.keras import Sequential, optimizers, initializers
-from tensorflow.keras.layers import Dropout, Embedding, Dense, LSTM, Bidirectional
-from tensorflow.keras.models import load_model
 
 
 class MimicLSTM():
     
     def __init__(self, layers, H, chardict, character_dim, data_dictionary, epochs=1, batch_size=1000,
-                 optimizer='adam', loss_function="mean_squared_error", train=True, full_set=False, load_path=''):
+                 recurrent_dropout=0.0, dense_dropout=0.0, use_attention=False, optimizer='adam',                                                loss_function="mean_squared_error", custom_loss=False, train=True, full_set=False, load_path=''):
         
-        """Init function.
+        """
+        Init function.
         Args:
           layers: number of bidirectional LSTM layers
           H: hidden state dimension
           chardict: map of characters to indices
           character_dim: Embedding length for each character to be used in model
-          output_dim: output dimension we are predicting
           data_dictionary: dictionary of words as keys and associated embeddings as values
-          max_len: longest sequence in training data; needed to pad data
+          epochs: Number or epochs to run during training
+          batch_size: Number of samples to use in calculating each gradient update
+          recurrent_dropout: Dropout rate in recurrent cells
+          dense_dropout: Dropout rate in final fully connected layer
+          use_attention: Add attention in between biLSTM layers if layers >= 2
           optimizer: defaults to adam but can accept another input
+          loss_function: Loss function train model
+          custom_loss: Whether to use cosine distance (Define below) instead of loss_function
+          train: Whether to train the model
+          full_set: If training the model, are we training on 100% of data, or withholding a validation set
+          load_path: Path to load pre-trained model
         """
                     
         self.layers = layers
@@ -47,7 +57,11 @@ class MimicLSTM():
         self.data_dictionary = data_dictionary
         self.optimizer=optimizer
         self.loss = loss_function
-        
+        self.use_attention = use_attention
+        self.recurrent_dropout = recurrent_dropout
+        self.dense_dropout = dense_dropout
+        self.custom_loss = custom_loss
+    
         if train:
             self.train_w, self.train_e, self.test_w, self.test_e, \
             self.words_index, self.embeddings = self.preprocess_data()
@@ -63,63 +77,79 @@ class MimicLSTM():
         """
         Create Keras neural model based on input specifications
         """
-        with tf.name_scope("model_creation"):
-            
-            # Initialize a Keras sequential model
-            lstm = Sequential()
-            
-            # Add an embedding layer which houses are character level embeddings.  We use a 
-            # mask to coincide with our earlier padding.  Embedding rows is equal to our character 
-            # count, +1 for our 0 mask, and +1 because function is up to but not including that number
-            lstm.add(Embedding(len(self.chardict)+2, self.character_dim, input_length=self.max_len, 
-                               embeddings_initializer=initializers.RandomUniform(-.1,.1), mask_zero=True))
-            
-            # ADd a bidirectional LSTM layer for each layer in self.layers.  Last layer only outputs final
-            # result, but intermediate layers return full sequence.  We default to concating forward
-            # and backward outputs across all layers.
-            for x in range(0,self.layers):
-                if x == self.layers-1:
-                    lstm.add(Bidirectional(LSTM(self.H, return_sequences=False),
-                                                merge_mode='concat'))
-                else:
-                    lstm.add(Bidirectional(LSTM(self.H, return_sequences=True), merge_mode='concat'))
-            
-            # Add a fully connected layer which results in predictions equal to our stated output_dim
-            lstm.add(Dense(self.output_dim, activation='tanh'))
+
+        # Initialize a Keras sequential model
+        lstm = Sequential()
+
+        # Add an embedding layer which houses are character level embeddings.  We use a 
+        # mask to coincide with our earlier padding.  Embedding rows is equal to our character 
+        # count, +1 for our 0 mask, and +1 because function is up to but not including that number
+
+        lstm.add(Embedding(len(self.chardict)+2, self.character_dim, input_length=self.max_len, 
+                           embeddings_initializer=initializers.RandomNormal(), mask_zero=True))
+
+        # ADd a bidirectional LSTM layer for each layer in self.layers.  Last layer only outputs final
+        # result, but intermediate layers return full sequence.  We default to concating forward
+        # and backward outputs across all layers.
+        for x in range(0,self.layers):
+            if x == self.layers-1:
+                lstm.add(Bidirectional(LSTM(self.H, return_sequences=False, 
+                                            recurrent_dropout=self.recurrent_dropout), merge_mode='concat'))
+            else:
+                lstm.add(Bidirectional(LSTM(self.H, return_sequences=True, 
+                                            recurrent_dropout=self.recurrent_dropout), merge_mode='concat'))
+
+                # If use_attention is set to true create an attention layer between each biLSTM layer
+                if self.use_attention:
+                    lstm.add(SeqSelfAttention(attention_activation='sigmoid',
+                                             kernel_regularizer=regularizers.l2(1e-5)))
+
+
+        # Apply dropout prior to fully connected layer; default value is 0 dropout
+        lstm.add(Dropout(rate=self.dense_dropout))
+
+        # Add a fully connected layer which results in predictions equal to our stated output_dim
+        lstm.add(Dense(self.output_dim, activation='tanh'))
                    
-            def custom_cosine(y_true, y_pred):
-                """
-                Keras cosine_proximity doesn't subtract 1, 
-                so can't be used as loss function if vectors have negative values
-                """
-                y_true = K.l2_normalize(y_true, axis=-1)
-                y_pred = K.l2_normalize(y_pred, axis=-1)
-                return 1-K.sum(y_true * y_pred, axis=-1)
-           
-            # Compile model and view high level summary for analysis
-            lstm.compile(loss=self.loss, optimizer=self.optimizer)
-            lstm.summary()
-            
-            
+        def custom_cosine(y_true, y_pred):
+            """
+            Keras cosine_proximity doesn't subtract 1, 
+            so can't be used as loss function if vectors have negative values
+            """
+            y_true = K.l2_normalize(y_true, axis=-1)
+            y_pred = K.l2_normalize(y_pred, axis=-1)
+            return 1-K.sum(y_true * y_pred, axis=-1)
+
+        if self.custom_loss:
+            self.loss = custom_cosine
+
+        # Compile model and view high level summary for analysis
+        lstm.compile(loss=self.loss, optimizer=self.optimizer)
+        lstm.summary()
+                
         return lstm
 
     
     def calc_max_len(self, train_words):
         """
         helper function to calculate longest sequence in data
+        :param train_words: list of words which are used in training data
         """
         max_len=0
         for word in train_words:
             if len(word) > max_len:
                 max_len = len(word)
+                
         return max_len
     
     
     def pad_data(self, sequences):
         """
         helper function which left pads sequences based on self.max_len
+        :param sequences: list of sequences which we will pad 
         """
         padded_data = sequence.pad_sequences(sequences, maxlen=self.max_len)
+        
         return padded_data
     
     
@@ -180,10 +210,11 @@ class MimicLSTM():
         """
         try:
             self.lstm.save(path) 
+            print("Save Succesful")
         except:
             print("Error saving file")
                           
-        return "Save Succesful"
+        return self
              
                           
     def load_model(self, path):
@@ -193,10 +224,11 @@ class MimicLSTM():
         """
         try:              
             self.lstm = load_model(path)
+            print("Load Succesful")
         except:
-            print("Could not load file, not valid path")
+            print("Could not load file, not valid file or path")
                           
-        return "Load Succesful"
+        return self
                           
         
 
