@@ -14,7 +14,7 @@ import gensim
 
 from keras import backend as K
 from keras import Sequential, optimizers, initializers, regularizers
-from keras.layers import Dropout, Embedding, Dense, LSTM, Bidirectional, LeakyReLU
+from keras.layers import Dropout, Embedding, Dense, LSTM, Bidirectional
 from keras.models import load_model
 from keras.preprocessing import sequence 
 
@@ -26,7 +26,7 @@ from sklearn.model_selection import train_test_split
 class MimicLSTM():
     
     def __init__(self, layers, H, chardict, character_dim, data_dictionary, epochs=1, batch_size=1000,
-                 recurrent_dropout=0.0, dense_dropout=0.0, use_attention=False, optimizer='adam',                                                loss_function="mean_squared_error", custom_loss=False, train=True, full_set=False, load_path=''):
+                 recurrent_dropout=0.0, dense_dropout=0.0, use_attention=False, optimizer='adam',                                                loss_function="mean_squared_error", train=True, full_set=False, load_path=''):
         
         """
         Init function.
@@ -60,7 +60,6 @@ class MimicLSTM():
         self.use_attention = use_attention
         self.recurrent_dropout = recurrent_dropout
         self.dense_dropout = dense_dropout
-        self.custom_loss = custom_loss
     
         if train:
             self.train_w, self.train_e, self.test_w, self.test_e, \
@@ -109,19 +108,7 @@ class MimicLSTM():
         lstm.add(Dropout(rate=self.dense_dropout))
 
         # Add a fully connected layer which results in predictions equal to our stated output_dim
-        lstm.add(Dense(self.output_dim, activation='tanh'))
-                   
-        def custom_cosine(y_true, y_pred):
-            """
-            Keras cosine_proximity doesn't subtract 1, 
-            so can't be used as loss function if vectors have negative values
-            """
-            y_true = K.l2_normalize(y_true, axis=-1)
-            y_pred = K.l2_normalize(y_pred, axis=-1)
-            return 1-K.sum(y_true * y_pred, axis=-1)
-
-        if self.custom_loss:
-            self.loss = custom_cosine
+        lstm.add(Dense(self.output_dim, activation='tanh'))                  
 
         # Compile model and view high level summary for analysis
         lstm.compile(loss=self.loss, optimizer=self.optimizer)
