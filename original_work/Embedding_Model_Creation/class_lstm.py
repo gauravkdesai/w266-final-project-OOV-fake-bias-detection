@@ -25,8 +25,9 @@ from sklearn.model_selection import train_test_split
 
 class MimicLSTM():
     
-    def __init__(self, layers, H, chardict, character_dim, data_dictionary, epochs=1, batch_size=1000,
-                 recurrent_dropout=0.0, dense_dropout=0.0, use_attention=False, optimizer='adam',                                                loss_function="mean_squared_error", train=True, full_set=False, load_path=''):
+    def __init__(self, layers, H, chardict, character_dim, data_dictionary, epochs=1, batch_size=1000, recurrent_dropout=0.0,
+                 dense_dropout=0.0, use_attention=False, optimizer='adam',loss_function="mean_squared_error", train=True,
+                 full_set=False, load_path=''):
         
         """
         Init function.
