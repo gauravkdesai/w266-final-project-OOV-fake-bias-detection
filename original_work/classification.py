@@ -15,7 +15,7 @@ import warnings
 warnings.filterwarnings('ignore')
 
 
-def CalculatePerformance(y_true, y_pred, task_main):
+def CalculatePerformance(y_true, y_pred, task):
     f1 = f1_score(y_true, y_pred, average='macro') * 100
     acc = accuracy_score(y_true, y_pred) * 100
     num_classes = 7 if task == 'bias' else 3
@@ -39,13 +39,15 @@ def CalculatePerformance(y_true, y_pred, task_main):
     return [f1, acc, mae, mae_m]
 
 
-def GetFeaturesAndLabels(corpus, features, task):
-    data = pd.read_csv('data/corpus.csv')
+def GetFeaturesAndLabels(corpus, features, task, features_location):
+    data = pd.read_csv(corpus)
     sources = data.source_url_processed
     X = np.empty(data.shape[0]).reshape(-1, 1)
-    for file in [f for f in os.listdir('data/features/') if '.npy' in f]:
+    for file in [f for f in os.listdir(features_location) if '.npy' in f]:
         if file.replace('.npy', '') in features:
-            feats = pd.DataFrame(np.load('data/features/' + file))
+            feats = pd.DataFrame(np.load(features_location + file))
+            print(feats.shape)
+            print(feats.head())
             feats = feats[feats.iloc[:, 0].isin(sources)].as_matrix()
             feats = np.delete(feats, 0, axis=1).astype(float)
             X = np.hstack([X, feats[:, :-2]])
@@ -56,7 +58,7 @@ def GetFeaturesAndLabels(corpus, features, task):
     labels = {}
     labels['fact'] = {'low': 0, 'mixed': 1, 'high': 2}
     labels['bias'] = {'extreme-right': 0, 'right': 1, 'right-center': 2, 'center': 3, 'left-center': 4, 'left': 5, 'extreme-left': 6}
-    data = pd.read_csv('data/corpus.csv')
+    #data = pd.read_csv(corpus)
     if task in labels.keys():
         y = data[task]
         y = [labels[task][L.lower()] for L in y]
@@ -68,9 +70,9 @@ def GetFeaturesAndLabels(corpus, features, task):
     return X, y
 
 
-def Classification(corpus, features, task):
-    X, y = GetFeaturesAndLabels(corpus, features, task)
-    with codecs.open('data/splits.json', 'r') as f:
+def Classification(corpus, features, task, features_location):
+    X, y = GetFeaturesAndLabels(corpus, features, task, features_location)
+    with codecs.open('../News-Media_Reliability/data/splits.json', 'r') as f:
         splits = json.load(f)
     # placeholders to accumulate true and predicted labels
     y_true = []
@@ -126,9 +128,10 @@ def parse_params():
     =======================================================================================
     """
     parser = argparse.ArgumentParser(description='Source Reliability')
-    parser.add_argument('--corpus',             type=str, default='MBFC_v2')
+    parser.add_argument('--corpus',             type=str, default='../News-Media_Reliability/data/corpus.csv')
     parser.add_argument('--task',               type=str, default='bias')
     parser.add_argument('--features',           type=str, default='body+title') # list of features must be separated by "+" sign
+    parser.add_argument('--feature_location',   type=str, default='../News-Media_Reliability/data/features/')
     params = parser.parse_args()
     return params
 
@@ -139,10 +142,11 @@ if __name__ == '__main__':
     corpus = user_params.corpus
     task = user_params.task
     features = user_params.features.split('+')
+    feature_location = user_params.feature_location
 
     print('task:'     + task)
     print('features:' + ', '.join(features))
-    results = Classification(corpus, features, task)
+    results = Classification(corpus, features, task,feature_location)
     print('Results:')
     print('F1\t{}'.format(results[0]))
     print('Acc.\t{}'.format(results[1]))
