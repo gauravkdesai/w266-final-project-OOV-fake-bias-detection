@@ -46,8 +46,8 @@ def GetFeaturesAndLabels(corpus, features, task, features_location):
     for file in [f for f in os.listdir(features_location) if '.npy' in f]:
         if file.replace('.npy', '') in features:
             feats = pd.DataFrame(np.load(features_location + file))
-            print(feats.shape)
-            print(feats.head())
+            #print(feats.shape)
+            #print(feats.head())
             feats = feats[feats.iloc[:, 0].isin(sources)].as_matrix()
             feats = np.delete(feats, 0, axis=1).astype(float)
             X = np.hstack([X, feats[:, :-2]])
