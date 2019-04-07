@@ -1,3 +1,7 @@
+# Note: This file was created by Baly et. al. as part of their work on factuaility and bias in news.
+# We include it within our Original_Work folder only to simplify running our comparison scripts.  The
+# Code below belongs solely to those authors, and has not been altered from its original state.
+
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import os
