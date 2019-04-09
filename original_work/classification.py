@@ -14,6 +14,7 @@ from sklearn.svm import SVC
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import f1_score, accuracy_score
+import pdb
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -44,17 +45,22 @@ def CalculatePerformance(y_true, y_pred, task):
 
 
 def GetFeaturesAndLabels(corpus, features, task, features_location):
+    #pdb.set_trace()
     data = pd.read_csv(corpus)
     sources = data.source_url_processed
     X = np.empty(data.shape[0]).reshape(-1, 1)
     for file in [f for f in os.listdir(features_location) if '.npy' in f]:
         if file.replace('.npy', '') in features:
             feats = pd.DataFrame(np.load(features_location + file))
+            #print('1',feats)
             #print(feats.shape)
             #print(feats.head())
             feats = feats[feats.iloc[:, 0].isin(sources)].as_matrix()
+            #print('2',feats)
             feats = np.delete(feats, 0, axis=1).astype(float)
+            #print('3',feats)
             X = np.hstack([X, feats[:, :-2]])
+            #print('4',X)
     X = np.delete(X, 0, axis=1)
     X = np.hstack([np.asarray(sources).reshape(-1, 1), X])
     X = pd.DataFrame(X)
