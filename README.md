@@ -15,11 +15,6 @@ Git Hub repo link for Mimick code base is https://github.com/yuvalpinter/Mimick
 
 ## Student Work Overview
 
-This repo contains work related to project proposal which can be viewed via following link:
-
-https://docs.google.com/document/d/1Vn2480AQH09SXASAashxWCgOlh11qdBcBBA5MiEzVcs/edit?usp=sharing
-
 The final write-up for this project can be found here:
 
 https://docs.google.com/document/d/18fOmQLKhdbwbJXZ9a96_sQXVhhvDuHBiekh_gH4_R5Y/edit?usp=sharing
-
